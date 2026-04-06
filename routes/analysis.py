@@ -1,37 +1,45 @@
 from flask import Blueprint, jsonify
 from models.database import get_db_connection
-import pandas as pd
+from datetime import datetime
+from collections import defaultdict
 
 analysis_bp = Blueprint('analysis', __name__)
 
 @analysis_bp.route('/analysis/<int:user_id>', methods=['GET'])
 def get_analysis(user_id):
     conn = get_db_connection()
-    query = 'SELECT * FROM expenses WHERE user_id = ?'
-    df = pd.read_sql_query(query, conn, params=(user_id,))
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM expenses WHERE user_id = ?', (user_id,))
+    expenses = cursor.fetchall()
     conn.close()
     
-    if df.empty:
+    if not expenses:
         return jsonify({
             "total_expense": 0,
             "category_breakdown": {},
             "monthly_summary": {}
         }), 200
     
-    # Convert date to datetime for better analysis
-    df['date'] = pd.to_datetime(df['date'])
-    
-    total_expense = float(df['amount'].sum())
+    # Calculate totals
+    total_expense = sum(expense['amount'] for expense in expenses)
     
     # Category-wise breakdown
-    category_breakdown = df.groupby('category')['amount'].sum().to_dict()
+    category_breakdown = defaultdict(float)
+    for expense in expenses:
+        category_breakdown[expense['category']] += expense['amount']
     
     # Monthly summary (YYYY-MM)
-    df['month'] = df['date'].dt.strftime('%Y-%m')
-    monthly_summary = df.groupby('month')['amount'].sum().to_dict()
+    monthly_summary = defaultdict(float)
+    for expense in expenses:
+        try:
+            date_obj = datetime.strptime(expense['date'], '%Y-%m-%d')
+            month_key = date_obj.strftime('%Y-%m')
+            monthly_summary[month_key] += expense['amount']
+        except:
+            pass
     
     return jsonify({
-        "total_expense": total_expense,
-        "category_breakdown": category_breakdown,
-        "monthly_summary": monthly_summary
+        "total_expense": float(total_expense),
+        "category_breakdown": dict(category_breakdown),
+        "monthly_summary": dict(monthly_summary)
     }), 200

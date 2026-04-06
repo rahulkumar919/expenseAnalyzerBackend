@@ -26,10 +26,15 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
 # Initialize Flask-Mail
 mail.init_app(app)
 
-# CORS Configuration - Frontend se connect karne ke liye
+# CORS Configuration - Production ready
 CORS(app, resources={
     r"/*": {
-        "origins": ["*"],  # Production me apna frontend URL dalo
+        "origins": [
+            "https://expense-analyzer-steel.vercel.app",
+            "http://localhost:3000",
+            "http://localhost:5001",
+            "http://127.0.0.1:5001"
+        ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
